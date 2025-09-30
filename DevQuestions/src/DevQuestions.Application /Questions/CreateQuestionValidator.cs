@@ -7,9 +7,13 @@ public class CreateQuestionValidator : AbstractValidator<CreateQuestionDto>
 {
     public CreateQuestionValidator()
     {
-        RuleFor(x => x.Title).NotEmpty().MaximumLength(500).WithMessage("Заголовок невалидный");
+        RuleFor(x => x.Title)
+            .NotEmpty().WithMessage("Заголовок не может быт пустым.")
+            .MaximumLength(500).WithMessage("Заголовок невалидный");
         
-        RuleFor(x => x.Text).NotEmpty().MaximumLength(500).WithMessage("Текст невалидный");
+        RuleFor(x => x.Text)
+            .NotEmpty().WithMessage("Текст не может быт пустым.")
+            .MaximumLength(500).WithMessage("Текст невалидный");
         
         RuleFor(x=> x.UserId).NotEmpty();
         
