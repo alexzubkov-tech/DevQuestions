@@ -1,23 +1,32 @@
-﻿using DevQuestions.Contracts.Questions;
+﻿using DevQuestions.Application.Exstensions;
+using DevQuestions.Application.FullTextSearch;
+using DevQuestions.Application.Questions.Exceptions;
+using DevQuestions.Application.Questions.Fails;
+using DevQuestions.Application.Questions.Fails.Exceptions;
+using DevQuestions.Contracts.Questions;
 using DevQuestions.Domain.Questions;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
+using Shared;
 
 namespace DevQuestions.Application.Questions;
 
 public class QuestionsService : IQuestionsService
 {
     private readonly IQuestionsRepository _questionsRepository;
+   // private readonly ISearchProvider _searchProvider;
     private readonly ILogger<QuestionsService> _logger;
     private readonly IValidator<CreateQuestionDto> _validator;
 
     public QuestionsService(
         IQuestionsRepository questionsRepository,
         IValidator<CreateQuestionDto> validator,
+      //  ISearchProvider searchProvider,
         ILogger<QuestionsService> logger)
     {
         _questionsRepository = questionsRepository;
         _validator = validator;
+      //  _searchProvider = searchProvider;
         _logger = logger;
     }
 
@@ -28,16 +37,18 @@ public class QuestionsService : IQuestionsService
         var validationResult = await _validator.ValidateAsync(questionDto, cancellationToken);
         if (!validationResult.IsValid)
         {
-            throw new ValidationException(validationResult.Errors);
+            throw new QuestionValidationException(validationResult.ToErrors());
         }
 
         // валидация бизнес логики
         int openUserQuestionsCount = await _questionsRepository
             .GetOpenUserQuestionsAsync(questionDto.UserId, cancellationToken);
 
+        var existedQuestion = await _questionsRepository.GetIdAsync(Guid.Empty, cancellationToken);
+        
         if (openUserQuestionsCount > 3)
         {
-            throw new Exception("Пользователь не может открыть больше 3 вопросов");
+            throw new ToManyQuestionsException();
         }
 
         // создание сущности Question
@@ -53,11 +64,13 @@ public class QuestionsService : IQuestionsService
 
         // сохранение сущности Question в базе данных
         await _questionsRepository.AddAsync(question,  cancellationToken);
-
+        
+       // await _searchProvider.IndexQuestionAsync(question );
+        
         // логирование об успешном или неуспешном сохранении
         _logger.LogInformation("Created question with id {questionId}", questionId);
 
-        return questionId;
+         return questionId;
     }
 
     // public async Task<IActionResult> Update(
